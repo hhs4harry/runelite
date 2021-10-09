@@ -2,6 +2,7 @@ package net.runelite.client.plugins.externals.oneclick.comparables.skilling;
 
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
@@ -93,5 +94,10 @@ public class Runes extends ClickCompare
 		e.setOption("Use");
 		e.setTarget(rune);
 		e.setForceLeftClick(true);
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
+
 	}
 }

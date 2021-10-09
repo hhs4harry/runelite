@@ -1,6 +1,8 @@
 package net.runelite.client.plugins.externals.oneclick.comparables.misc;
 
 import com.google.common.base.Splitter;
+
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,7 +10,9 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.widgets.WidgetID;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
 
 @Slf4j
@@ -116,6 +120,24 @@ public class Custom extends ClickCompare
 				log.error("Error: ", e);
 				return;
 			}
+		}
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
+		var widget = client.getWidget(WidgetID.MULTISKILL_MENU_GROUP_ID, 14);
+
+		// 1733:1745
+		if (widget != null && widget.getName().toLowerCase().contains("green dragonhide")) {
+			var canvas = client.getCanvas();
+
+			var keyPressed = new KeyEvent(canvas, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, 54, KeyEvent.CHAR_UNDEFINED);
+			var keyTyped = new KeyEvent(canvas, KeyEvent.KEY_TYPED, System.currentTimeMillis(), 0, KeyEvent.VK_UNDEFINED, (char)KeyEvent.VK_1);
+			var keyReleased = new KeyEvent(canvas, KeyEvent.KEY_RELEASED, System.currentTimeMillis(), 0, 54, KeyEvent.CHAR_UNDEFINED);
+
+			canvas.dispatchEvent(keyPressed);
+			canvas.dispatchEvent(keyTyped);
+			canvas.dispatchEvent(keyReleased);
 		}
 	}
 }

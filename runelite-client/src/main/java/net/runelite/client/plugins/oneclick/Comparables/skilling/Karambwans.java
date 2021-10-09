@@ -3,6 +3,7 @@ package net.runelite.client.plugins.externals.oneclick.comparables.skilling;
 import net.runelite.api.ItemID;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
 
@@ -57,5 +58,10 @@ public class Karambwans extends ClickCompare
 		e.setTarget("<col=ff9040>Raw karambwan<col=ffffff> -> " + getTargetMap().get(e.getIdentifier()));
 		e.setForceLeftClick(true);
 		insert(e);
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
+
 	}
 }

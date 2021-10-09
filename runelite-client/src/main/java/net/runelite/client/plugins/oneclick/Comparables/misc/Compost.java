@@ -3,6 +3,7 @@ package net.runelite.client.plugins.externals.oneclick.comparables.misc;
 import net.runelite.api.ItemID;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
 
@@ -55,5 +56,10 @@ public class Compost extends ClickCompare
 
 		e.setTarget("<col=ff9040>Saltpetre<col=ffffff> -> " + getTargetMap().get(e.getIdentifier()));
 		e.setForceLeftClick(true);
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
+
 	}
 }

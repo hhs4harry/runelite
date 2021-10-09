@@ -1,6 +1,7 @@
 package net.runelite.client.plugins.externals.oneclick.comparables.misc;
 
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
 
@@ -33,6 +34,11 @@ public class Blank extends ClickCompare
 	@Override
 	public void backupEntryModify(MenuEntry e)
 	{
+
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
 
 	}
 }

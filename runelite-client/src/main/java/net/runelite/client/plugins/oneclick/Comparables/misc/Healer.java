@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemID;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
 
@@ -93,5 +94,10 @@ public class Healer extends ClickCompare
 		e.setOption("Use");
 		e.setTarget("<col=ff9040>Food<col=ffffff> -> <col=ffff00>Penance Healer");
 		e.setForceLeftClick(true);
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
+
 	}
 }

@@ -7,6 +7,7 @@ import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Skill;
 import net.runelite.api.SpriteID;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
@@ -305,5 +306,10 @@ public class Spell extends ClickCompare
 		e.setOption("Cast");
 		e.setTarget("<col=00ff00>" + spell + "</col>" + "<col=ffffff> -> " + clickItem.getName());
 		e.setForceLeftClick(true);
+	}
+
+	@Override
+	public void onGameTick(GameTick event) {
+
 	}
 }

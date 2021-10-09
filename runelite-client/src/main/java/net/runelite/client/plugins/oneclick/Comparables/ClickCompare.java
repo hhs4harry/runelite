@@ -7,6 +7,7 @@ import java.util.Map;
 import lombok.Setter;
 import net.runelite.api.Client;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
@@ -34,6 +35,8 @@ public abstract class ClickCompare
 	public abstract void modifyClick(MenuOptionClicked event);
 
 	public abstract void backupEntryModify(MenuEntry e);
+
+	public abstract void onGameTick(GameTick event);
 
 	protected Map<Integer, String> getTargetMap()
 	{
