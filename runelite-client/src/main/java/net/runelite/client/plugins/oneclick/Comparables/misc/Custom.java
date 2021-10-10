@@ -13,6 +13,7 @@ import net.runelite.api.MenuEntry;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.WidgetID;
+import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.externals.oneclick.comparables.ClickCompare;
 
 @Slf4j
@@ -127,8 +128,12 @@ public class Custom extends ClickCompare
 	public void onGameTick(GameTick event) {
 		var widget = client.getWidget(WidgetID.MULTISKILL_MENU_GROUP_ID, 14);
 
+		if (widget == null) {
+			return;
+		}
+
 		// 1733:1745
-		if (widget != null && widget.getName().toLowerCase().contains("green dragonhide")) {
+		if (widget.getName().toLowerCase().contains("green dragonhide") || widget.getName().toLowerCase().contains("air battlestaff")) {
 			var canvas = client.getCanvas();
 
 			var keyPressed = new KeyEvent(canvas, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, 54, KeyEvent.CHAR_UNDEFINED);

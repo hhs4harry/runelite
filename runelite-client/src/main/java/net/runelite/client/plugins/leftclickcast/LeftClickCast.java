@@ -69,7 +69,7 @@ public class LeftClickCast extends Plugin
 	private final Set<Integer> whitelist = new HashSet<>();
 
 	private boolean isMage;
-	private Spells currentSpell = Spells.ICE_BARRAGE;
+	private Spells currentSpell = Spells.CURSE;
 
 	private final HotkeyListener spellOneSwap = new HotkeyListener(() -> config.spellOneSwap())
 	{

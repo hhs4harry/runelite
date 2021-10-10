@@ -137,6 +137,8 @@ public class OneClickPlugin extends Plugin
 				((Healer) comparable).setRoleText("");
 			}
 		}
+
+		comparable.onGameTick(event);
 	}
 
 	@Subscribe

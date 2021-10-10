@@ -29,17 +29,16 @@ package net.runelite.client.plugins.menuentryswapper;
 import com.google.common.annotations.VisibleForTesting;
 import static com.google.common.base.Predicates.alwaysTrue;
 import static com.google.common.base.Predicates.equalTo;
+
+import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.inject.Provides;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.inject.Inject;
@@ -85,6 +84,10 @@ import org.apache.commons.lang3.ArrayUtils;
 )
 public class MenuEntrySwapperPlugin extends Plugin
 {
+	private static final Splitter NEWLINE_SPLITTER = Splitter
+			.on("\n")
+			.omitEmptyStrings()
+			.trimResults();
 	private static final String CONFIGURE = "Configure";
 	private static final String SAVE = "Save";
 	private static final String RESET = "Reset";
@@ -409,6 +412,28 @@ public class MenuEntrySwapperPlugin extends Plugin
 		swap("eat", "guzzle", config::swapRockCake);
 
 		swap("travel", "dive", config::swapRowboatDive);
+
+		swapCustom(config.customSwaps());
+	}
+
+	private void swapCustom(String swaps)
+	{
+		final Iterable<String> tmp = NEWLINE_SPLITTER.split(swaps);
+
+		for (String s : tmp)
+		{
+			if (s.startsWith("//"))
+			{
+				continue;
+			}
+
+			String[] split = s.split(":");
+			try {
+				swap(split[0], split[1], () -> true);
+			} catch (Exception e) {
+				continue;
+			}
+		}
 	}
 
 	public Swap swap(String option, String swappedOption, Supplier<Boolean> enabled)
@@ -464,6 +489,8 @@ public class MenuEntrySwapperPlugin extends Plugin
 		{
 			clientThread.invoke(this::resetItemCompositionCache);
 		}
+
+		swapCustom(config.customSwaps());
 	}
 
 	private void resetItemCompositionCache()
