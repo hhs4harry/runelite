@@ -323,7 +323,7 @@ public class ExtUtils extends Plugin
 	 */
 	public void typeString(String string)
 	{
-		assert !client.isClientThread();
+//		assert !client.isClientThread();
 
 		for (char c : string.toCharArray())
 		{
