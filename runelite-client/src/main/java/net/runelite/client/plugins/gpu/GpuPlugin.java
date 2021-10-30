@@ -78,6 +78,7 @@ import net.runelite.api.hooks.DrawCallbacks;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginInstantiationException;
@@ -387,7 +388,10 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 					}
 
 					this.gl = glContext.getGL().getGL4();
-					gl.setSwapInterval(0);
+
+					final boolean unlockFps = this.config.unlockFps();
+					client.setUnlockedFps(unlockFps);
+					gl.setSwapInterval(unlockFps ? 1 : 0);
 
 					if (log.isDebugEnabled())
 					{
@@ -459,6 +463,7 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 		{
 			client.setGpu(false);
 			client.setDrawCallbacks(null);
+			client.setUnlockedFps(false);
 
 			invokeOnMainThread(() ->
 			{
@@ -527,6 +532,23 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 	GpuPluginConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(GpuPluginConfig.class);
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged configChanged)
+	{
+		if (configChanged.getGroup().equals(GpuPluginConfig.GROUP))
+		{
+			if (configChanged.getKey().equals("unlockFps"))
+			{
+				boolean unlockFps = Boolean.parseBoolean(configChanged.getNewValue());
+				clientThread.invokeLater(() ->
+				{
+					client.setUnlockedFps(unlockFps);
+					invokeOnMainThread(() -> gl.setSwapInterval(unlockFps ? 1 : 0));
+				});
+			}
+		}
 	}
 
 	private void initProgram() throws ShaderException
@@ -775,6 +797,12 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 		final Scene scene = client.getScene();
 		scene.setDrawDistance(getDrawDistance());
+
+		// Only reset the target buffer offset right before drawing the scene. That way if there are frames
+		// after this that don't involve a scene draw, like during LOADING/HOPPING/CONNECTION_LOST, we can
+		// still redraw the previous frame's scene to emulate the client behavior of not painting over the
+		// viewport buffer.
+		targetBufferOffset = 0;
 
 		invokeOnMainThread(() ->
 		{
@@ -1029,21 +1057,9 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 	private void drawFrame(int overlayColor)
 	{
-		if (jawtWindow.getAWTComponent() != client.getCanvas())
-		{
-			// We inject code in the game engine mixin to prevent the client from doing canvas replacement,
-			// so this should not ever be hit
-			log.warn("Canvas invalidated!");
-			shutDown();
-			startUp();
-			return;
-		}
-
-		if (client.getGameState() == GameState.LOADING || client.getGameState() == GameState.HOPPING)
-		{
-			// While the client is loading it doesn't draw
-			return;
-		}
+		// We inject code in the game engine mixin to prevent the client from doing canvas replacement,
+		// so this should not ever be tripped
+		assert jawtWindow.getAWTComponent() == client.getCanvas() : "canvas invalidated";
 
 		final int canvasHeight = client.getCanvasHeight();
 		final int canvasWidth = client.getCanvasWidth();
@@ -1105,7 +1121,8 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 		// Draw 3d scene
 		final TextureProvider textureProvider = client.getTextureProvider();
-		if (textureProvider != null)
+		final GameState gameState = client.getGameState();
+		if (textureProvider != null && gameState.getState() >= GameState.LOADING.getState())
 		{
 			if (textureArrayId == -1)
 			{
@@ -1265,7 +1282,6 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 		modelBufferSmall.clear();
 		modelBufferUnordered.clear();
 
-		targetBufferOffset = 0;
 		smallModels = largeModels = unorderedModels = 0;
 		tempOffset = 0;
 		tempUvOffset = 0;
@@ -1421,12 +1437,18 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
 	{
-		if (computeMode == ComputeMode.NONE || gameStateChanged.getGameState() != GameState.LOGGED_IN)
+		switch (gameStateChanged.getGameState())
 		{
-			return;
+			case LOGGED_IN:
+				if (computeMode != ComputeMode.NONE)
+				{
+					invokeOnMainThread(this::uploadScene);
+				}
+				break;
+			case LOGIN_SCREEN:
+				// Avoid drawing the last frame's buffer during LOADING after LOGIN_SCREEN
+				targetBufferOffset = 0;
 		}
-
-		invokeOnMainThread(this::uploadScene);
 	}
 
 	private void uploadScene()
@@ -1454,38 +1476,42 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 	/**
 	 * Check is a model is visible and should be drawn.
 	 */
-	private boolean isVisible(Model model, int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int _x, int _y, int _z, long hash)
+	private boolean isVisible(Model model, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z)
 	{
-		final int XYZMag = model.getXYZMag();
+		model.calculateBoundsCylinder();
+
+		final int xzMag = model.getXYZMag();
+		final int bottomY = model.getBottomY();
 		final int zoom = client.get3dZoom();
 		final int modelHeight = model.getModelHeight();
 
-		int Rasterizer3D_clipMidX2 = client.getRasterizer3D_clipMidX2();
-		int Rasterizer3D_clipNegativeMidX = client.getRasterizer3D_clipNegativeMidX();
-		int Rasterizer3D_clipNegativeMidY = client.getRasterizer3D_clipNegativeMidY();
-		int Rasterizer3D_clipMidY2 = client.getRasterizer3D_clipMidY2();
+		int Rasterizer3D_clipMidX2 = client.getRasterizer3D_clipMidX2(); // width / 2
+		int Rasterizer3D_clipNegativeMidX = client.getRasterizer3D_clipNegativeMidX(); // -width / 2
+		int Rasterizer3D_clipNegativeMidY = client.getRasterizer3D_clipNegativeMidY(); // -height / 2
+		int Rasterizer3D_clipMidY2 = client.getRasterizer3D_clipMidY2(); // height / 2
 
-		int var11 = yawCos * _z - yawSin * _x >> 16;
-		int var12 = pitchSin * _y + pitchCos * var11 >> 16;
-		int var13 = pitchCos * XYZMag >> 16;
-		int var14 = var12 + var13;
-		if (var14 > 50)
+		int var11 = yawCos * z - yawSin * x >> 16;
+		int var12 = pitchSin * y + pitchCos * var11 >> 16;
+		int var13 = pitchCos * xzMag >> 16;
+		int depth = var12 + var13;
+		if (depth > 50)
 		{
-			int var15 = _z * yawSin + yawCos * _x >> 16;
-			int var16 = (var15 - XYZMag) * zoom;
-			if (var16 / var14 < Rasterizer3D_clipMidX2)
+			int rx = z * yawSin + yawCos * x >> 16;
+			int var16 = (rx - xzMag) * zoom;
+			if (var16 / depth < Rasterizer3D_clipMidX2)
 			{
-				int var17 = (var15 + XYZMag) * zoom;
-				if (var17 / var14 > Rasterizer3D_clipNegativeMidX)
+				int var17 = (rx + xzMag) * zoom;
+				if (var17 / depth > Rasterizer3D_clipNegativeMidX)
 				{
-					int var18 = pitchCos * _y - var11 * pitchSin >> 16;
-					int var19 = pitchSin * XYZMag >> 16;
-					int var20 = (var18 + var19) * zoom;
-					if (var20 / var14 > Rasterizer3D_clipNegativeMidY)
+					int ry = pitchCos * y - var11 * pitchSin >> 16;
+					int yheight = pitchSin * xzMag >> 16;
+					int ybottom = (pitchCos * bottomY >> 16) + yheight; // use bottom height instead of y pos for height
+					int var20 = (ry + ybottom) * zoom;
+					if (var20 / depth > Rasterizer3D_clipNegativeMidY)
 					{
-						int var21 = (pitchCos * modelHeight >> 16) + var19;
-						int var22 = (var18 - var21) * zoom;
-						return var22 / var14 < Rasterizer3D_clipMidY2;
+						int ytop = (pitchCos * modelHeight >> 16) + yheight;
+						int var22 = (ry - ytop) * zoom;
+						return var22 / depth < Rasterizer3D_clipMidY2;
 					}
 				}
 			}
@@ -1521,9 +1547,7 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 					renderable.setModelHeight(model.getModelHeight());
 				}
 
-				model.calculateBoundsCylinder();
-
-				if (!isVisible(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash))
+				if (!isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z))
 				{
 					return;
 				}
@@ -1551,9 +1575,7 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 		{
 			Model model = (Model) renderable;
 
-			model.calculateBoundsCylinder();
-
-			if (!isVisible(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash))
+			if (!isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z))
 			{
 				return;
 			}
@@ -1589,9 +1611,7 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 					renderable.setModelHeight(model.getModelHeight());
 				}
 
-				model.calculateBoundsCylinder();
-
-				if (!isVisible(model, orientation, pitchSin, pitchCos, yawSin, yawCos, x, y, z, hash))
+				if (!isVisible(model, pitchSin, pitchCos, yawSin, yawCos, x, y, z))
 				{
 					return;
 				}

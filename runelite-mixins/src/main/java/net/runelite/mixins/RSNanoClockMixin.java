@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Tomas Slusny <slusnucky@gmail.com>
+ * Copyright (c) 2016-2017, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,46 +22,55 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.prayer;
+package net.runelite.mixins;
 
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
-import net.runelite.api.ItemID;
+import net.runelite.api.mixins.Copy;
+import net.runelite.api.mixins.Mixin;
+import net.runelite.api.mixins.Replace;
+import net.runelite.api.mixins.Shadow;
+import net.runelite.rs.api.RSClient;
+import net.runelite.rs.api.RSNanoClock;
 
-enum PrayerRestoreType
+@Mixin(RSNanoClock.class)
+public abstract class RSNanoClockMixin implements RSNanoClock
 {
-	RESTOREPOT(ItemID.SUPER_RESTORE4, ItemID.SUPER_RESTORE3, ItemID.SUPER_RESTORE2, ItemID.SUPER_RESTORE1,
-		ItemID.BLIGHTED_SUPER_RESTORE4, ItemID.BLIGHTED_SUPER_RESTORE3, ItemID.BLIGHTED_SUPER_RESTORE2,
-		ItemID.BLIGHTED_SUPER_RESTORE1),
-	PRAYERPOT(ItemID.PRAYER_POTION4, ItemID.PRAYER_POTION3, ItemID.PRAYER_POTION2, ItemID.PRAYER_POTION1),
-	SANFEWPOT(ItemID.SANFEW_SERUM4, ItemID.SANFEW_SERUM3, ItemID.SANFEW_SERUM2, ItemID.SANFEW_SERUM1),
-	HOLYWRENCH(ItemID.PRAYER_CAPE, ItemID.PRAYER_CAPET, ItemID.MAX_CAPE,
-		ItemID.MAX_CAPE_13342, ItemID.HOLY_WRENCH, ItemID.RING_OF_THE_GODS_I);
+	@Shadow("client")
+	private static RSClient client;
 
-	private static final Map<Integer, PrayerRestoreType> prayerRestores;
-
-	private final int[] items;
-
-	PrayerRestoreType(int... items)
+	@Copy("wait")
+	@Replace("wait")
+	public int copy$wait(int cycleDurationMillis, int var2)
 	{
-		this.items = items;
-	}
-
-	static
-	{
-		ImmutableMap.Builder<Integer, PrayerRestoreType> builder = new ImmutableMap.Builder<>();
-		for (PrayerRestoreType prayerRestoreType : values())
+		if (!client.isUnlockedFps())
 		{
-			for (int itemId : prayerRestoreType.items)
+			return copy$wait(cycleDurationMillis, var2);
+		}
+		else
+		{
+			long nanoTime = System.nanoTime();
+
+			if (nanoTime < getLastTimeNano())
 			{
-				builder.put(itemId, prayerRestoreType);
+				setLastTimeNano(nanoTime);
+
+				return 1;
+			}
+			else
+			{
+				long cycleDuration = (long) cycleDurationMillis * 1000000L;
+				long diff = nanoTime - getLastTimeNano();
+
+				int cycles = (int) (diff / cycleDuration);
+
+				setLastTimeNano(getLastTimeNano() + (long) cycles * cycleDuration);
+
+				if (cycles > 10)
+				{
+					cycles = 10;
+				}
+
+				return cycles;
 			}
 		}
-		prayerRestores = builder.build();
-	}
-
-	static PrayerRestoreType getType(final int itemId)
-	{
-		return prayerRestores.get(itemId);
 	}
 }
