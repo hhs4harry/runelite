@@ -22,31 +22,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.http.service;
+package net.runelite.api;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.TaskScheduler;
-import org.springframework.scheduling.annotation.SchedulingConfigurer;
-import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
-import org.springframework.scheduling.config.ScheduledTaskRegistrar;
+import net.runelite.api.coords.LocalPoint;
 
-@Configuration
-public class SpringSchedulingConfigurer implements SchedulingConfigurer
+/**
+ * An ambient sound effect. These are loaded only at scene load and are used to play ambient
+ * sound effects that are purely client side and not sent from the server.
+ */
+public interface AmbientSoundEffect
 {
-	@Override
-	public void configureTasks(ScheduledTaskRegistrar taskRegistrar)
-	{
-		// this is from ScheduledTaskRegistrar.scheduleTasks() but modified to give the scheduler thread a
-		// recognizable name
-		ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
-			new ThreadFactoryBuilder()
-				.setNameFormat("scheduler-%d")
-				.build()
-		);
-		TaskScheduler scheduler = new ConcurrentTaskScheduler(scheduledExecutorService);
-		taskRegistrar.setTaskScheduler(scheduler);
-	}
+	/**
+	 * The id of the sound effect
+	 * @see SoundEffectID
+	 * @return
+	 */
+	int getSoundEffectId();
+
+	/**
+	 * The plane the sound effect is on
+	 * @return
+	 */
+	int getPlane();
+
+	/**
+	 * The min x/y position of the area this sound effect is at.
+	 * @return
+	 */
+	LocalPoint getMinPosition();
+
+	/**
+	 * The max x/y position of the area this sound effect is at
+	 * @return
+	 */
+	LocalPoint getMaxPosition();
 }

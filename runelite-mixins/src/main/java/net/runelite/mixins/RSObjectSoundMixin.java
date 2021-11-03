@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, tha23rd <https://https://github.com/tha23rd>
+ * Copyright (c) 2018, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,51 +22,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.api.queries;
+package net.runelite.mixins;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import net.runelite.api.Client;
-import net.runelite.api.Constants;
-import net.runelite.api.LocatableQueryResults;
-import net.runelite.api.Scene;
-import net.runelite.api.Tile;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.mixins.Inject;
+import net.runelite.api.mixins.Mixin;
+import net.runelite.rs.api.RSObjectSound;
 
-@Deprecated(since = "4.2.1", forRemoval = true)
-public class TileQuery extends LocatableQuery<Tile, TileQuery>
+@Mixin(RSObjectSound.class)
+public abstract class RSObjectSoundMixin implements RSObjectSound
 {
-	private List<Tile> getTiles(Client client)
+	@Inject
+	public LocalPoint getMinPosition()
 	{
-		List<Tile> tilesList = new ArrayList<>();
-		Scene scene = client.getScene();
-		Tile[][][] tiles = scene.getTiles();
-		int z = client.getPlane();
-		for (int x = 0; x < Constants.SCENE_SIZE; ++x)
-		{
-			for (int y = 0; y < Constants.SCENE_SIZE; ++y)
-			{
-				Tile tile = tiles[z][x][y];
-				if (tile == null)
-				{
-					continue;
-				}
-				tilesList.add(tile);
-			}
-		}
-		return tilesList;
+		return new LocalPoint(getX(), getY());
 	}
 
-	@Deprecated(since = "4.2.1", forRemoval = true)
-	@Override
-	public LocatableQueryResults<Tile> result(Client client)
+	@Inject
+	public LocalPoint getMaxPosition()
 	{
-		return new LocatableQueryResults<>(getTiles(client).stream()
-			.filter(Objects::nonNull)
-			.filter(predicate)
-			.distinct()
-			.collect(Collectors.toList()));
+		return new LocalPoint(getMaxX(), getMaxY());
 	}
-
 }
